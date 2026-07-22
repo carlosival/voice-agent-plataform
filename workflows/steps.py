@@ -3,6 +3,7 @@ from yaafpy import StreamWorkflow
 from av import AudioFrame
 from aiortc.mediastreams import MediaStreamError, MediaStreamTrack
 from typing import AsyncGenerator
+import asyncio
 from asyncio import gather, Queue, Event, QueueEmpty, ensure_future, CancelledError, create_task, wait_for, sleep, timeout, TimeoutError, CancelledError
 from collections import deque
 from workflows.audio_track import AudioOutputTrack
@@ -33,8 +34,13 @@ from workflows.utils import (
     frames_to_mono_int16
 )
 
-
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+
+
+loop = asyncio.get_event_loop()
+loop.set_debug(True)
+loop.slow_callback_duration = 0.1 # Warns if a callback takes > 100ms
 
 class VADState(Enum):
     QUIET    = 1
