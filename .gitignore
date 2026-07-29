@@ -5,6 +5,7 @@ scripts/export_sec.sh
 scripts/export_sec_prod.sh
 scripts/export_sec_dev.sh
 gateway/worker_router/GeoLite2-City.mmdb
+workflows/utils/context/prompts/*.txt
 .env
 __pycache__
 venv/

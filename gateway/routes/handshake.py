@@ -11,6 +11,8 @@ handshake_controller = HandshakeController()
 
 security = HTTPBearer()
 
+'''
+Deprecated remove in future
 @router.post("/handshake")
 async def http_handshake(request: Request,
     offer: WebRTCOffer,
@@ -19,6 +21,7 @@ async def http_handshake(request: Request,
     Handle HTTP POST handshake 
     """
     return await handshake_controller.handshake(request, offer, credentials)
+'''
 
 @router.websocket("/handshake/{token}")
 async def ws_handshake(websocket: WebSocket, token: str):

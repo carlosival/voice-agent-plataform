@@ -3,6 +3,7 @@ import asyncio
 from typing import TypedDict, Dict
 from smolagents import Tool, PythonInterpreterTool, FinalAnswerTool
 from .tool_types import ToolCallChunk
+
 # Registry: name → async callable
 TOOL_REGISTRY: dict[str, Tool] = {}
 

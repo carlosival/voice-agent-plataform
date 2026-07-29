@@ -149,7 +149,10 @@ class HandshakeController:
                             "pk_id":      str(pk_id),
                             "type":       data["type"],
                             "sdp":        data["sdp"],
-                            })
+                            },
+                            maxlen=1000,
+                            approximate=True,
+                            )
 
 
                     elif msg_type == "candidate":
@@ -272,7 +275,7 @@ class HandshakeController:
                 # Catch "Cannot call send once a close message has been sent"
                 logger.debug(f"Socket close skipped or already closing: {e}")
 
-    
+    ''' deprecated remove in future
     async def handshake(self, request: Request, offer: WebRTCOffer, credentials) -> dict:
         """
         Handle the core logic for HTTP POST handshake.
@@ -396,7 +399,7 @@ class HandshakeController:
         finally:
             await redis_client.delete(answer_stream_key)
             
-        
+        '''
 
     
         

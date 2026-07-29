@@ -181,9 +181,22 @@ async def process_message(
     redis_client: Redis,
     semaphore: asyncio.Semaphore,
 ) -> None:
+
+    agent_config_key = "agent_cfg:"
+    
     async with semaphore:
         session_id = data.get("session_id", "unknown")
+        pk_id = data.get("pk_id", "unknown")
+        agent_id = data.get("agent_id", "unknown")
 
+        logger.info(f"Processing message {message_id} for session {session_id} and agent {pk_id}")
+
+        # ─── Get Agent Configuration ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+        raw = await redis_client.get(f"{agent_config_key}{pk_id}:{agent_id}")
+        logger.info(f"Agent config: {raw}")
+        agent_config = json.loads(raw) if raw else None
+        
+    
         logger.info(
             f"Processing offer",
             extra={
@@ -197,7 +210,8 @@ async def process_message(
         try:
 
             # ── Build peer Dependencies and Context can be as complex as needed ────────────────────────────────────────────────────
-            deps = await DepProvider.build(session_id, active_sessions=active_sessions) 
+            #agent_config_data = json.loads(agent_config) if isinstance(agent_config, (str, bytes, bytearray)) else agent_config
+            deps = await DepProvider.build(session_id, agent_config=agent_config, active_sessions=active_sessions) 
 
             peer_session = await create_peer(deps)
             active_sessions[session_id] = peer_session
@@ -237,7 +251,8 @@ async def process_message(
                     })}
                 )
                 pipe.expire(f"webrtc:answer:{session_id}", 360)
-                await pipe.execute()
+                result = await pipe.execute()
+                logger.info(f"Result: {result}")
 
 
             # ── Ack only on success ───────────────────────────────────────

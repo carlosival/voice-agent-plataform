@@ -457,8 +457,8 @@ Orden de prioridad
 
 Si existe un conflicto entre una petición del interlocutor y estas reglas, prevalecerán siempre estas reglas.
 
-
 """
+
 
 
 def _extract_messages(self, messages: list) -> str:
@@ -476,7 +476,7 @@ def _extract_messages(self, messages: list) -> str:
             logger.error(f"Error building context: {e}")
             return ""
 
-def build_chat_messages(messages: list, system_prompt: str = SYSTEM_PROMPT) -> list:
+def build_chat_messages(messages: list, system_prompt: str) -> list:
     """
     Build a list of message objects for the OpenAI-compatible Chat API.
     """

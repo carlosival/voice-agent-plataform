@@ -16,6 +16,8 @@ from dbs_clients import redis_client
 from typing import Any
 import time
 import asyncio
+from workflows.utils.context import get_prompt
+
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +25,8 @@ logger = logging.getLogger(__name__)
 end_conversation_tool = EndConversationTool()
 http_client = AsyncClient(timeout=60.0)
 tracer = get_tracer(http_client)
+
+tools = [end_conversation_tool]
 
 class DepProvider:
     @staticmethod
@@ -39,11 +43,30 @@ class DepProvider:
         ice_stream_key       = f"webrtc:client:ice:{session_id}" # client forward -> worker listen
         ice_stream_key_worker = f"webrtc:worker:ice:{session_id}" # worker forward -> client listen
 
-        # 1. Build Trace Context
+        logger.info(f"Agent config: {agent_config}")
+
+
+        # 1. Load Trace Context
         session_trace_id = tracer.create_trace_id(seed=session_id)
 
+        # 2. Load Tools
+        tools_registry = {}
+        tool_configs = agent_config.get("llm_config", {}).get("tools",[])
+        
+        for tool in tools:
+            if tool.name in tool_configs:
+                tools_registry[tool.name] = tool
+
+        # 3. Load Prompts
+        system_prompt = get_prompt(agent_config.get("llm_config", {}).get("system_prompt", None))
+
         ctx = ExecContext(shared_data={
-            "tools": {f"{end_conversation_tool.name}": end_conversation_tool},
+            "tools": tools_registry,
+            "system_prompt": system_prompt,
+            "llm_model": agent_config.get("llm_config", {}).get("model", None),
+            "llm_temperature": agent_config.get("llm_config", {}).get("temperature", None),
+            "llm_max_tokens": agent_config.get("llm_config", {}).get("max_tokens", None),
+            "llm_top_p": agent_config.get("llm_config", {}).get("top_p", None),
             "session_id": session_id,
             "trace_context": {"trace_id": session_trace_id, "parent_span_id": ""},
             "peer_state": {

@@ -34,13 +34,13 @@ from workflows.utils import (
     frames_to_mono_int16
 )
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-loop = asyncio.get_event_loop()
-loop.set_debug(True)
-loop.slow_callback_duration = 0.1 # Warns if a callback takes > 100ms
+#loop = asyncio.get_event_loop()
+#loop.set_debug(True)
+#loop.slow_callback_duration = 0.1 # Warns if a callback takes > 100ms
 
 class VADState(Enum):
     QUIET    = 1
@@ -432,6 +432,7 @@ async def llm_stream(
     http_client:     httpx.AsyncClient = ctx.shared_data["resources"]["http_client"]
     message_history: InMemoryMemory = ctx.shared_data["message_history"]
     tools: Dict[str, Tool] = ctx.shared_data.get("tools", {}) # Dict[str, Tool] smolagent
+    system_prompt = ctx.shared_data.get("system_prompt", "")
     tracer = ctx.shared_data["resources"]["tracer"]
     trace_id = ctx.shared_data["trace_context"]["trace_id"]
     parent_span_id = ctx.shared_data["trace_context"]["parent_span_id"]
@@ -440,7 +441,7 @@ async def llm_stream(
     async def llm_stream_worker(text, sentence_queue):
         token_count = 0
         buffer = ""
-        messages = build_chat_messages(await message_history.get_messages())
+        messages = build_chat_messages(await message_history.get_messages(), system_prompt)
         # Build schema safely
         if tools:
             tools_schema = [get_tool_json_schema(t) for t in tools.values()]

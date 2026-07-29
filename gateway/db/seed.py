@@ -27,7 +27,7 @@ engine = create_async_engine(DATABASE_URL, echo=True)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 # Configuration templates for the dynamic mock AI properties
-MOCK_LLM = {"model": "llama-3-70b", "temperature": 0.7, "system_prompt": "You are a helpful voice assistant."}
+MOCK_LLM = {"model": "llama-3-70b", "temperature": 0.7, "system_prompt": {"resource":"local_disk","uri":"krlos.txt"}}
 MOCK_TTS = {"voice_id": "en-US-Neural-A", "engine": "cartesia", "speed": 1.0}
 MOCK_STT = {"engine": "deepgram", "model": "nova-2", "language": "en"}
 
