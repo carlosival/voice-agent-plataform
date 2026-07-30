@@ -441,6 +441,7 @@ async def llm_stream(
     async def llm_stream_worker(text, sentence_queue):
         token_count = 0
         buffer = ""
+        # Build messages from history
         messages = build_chat_messages(await message_history.get_messages(), system_prompt)
         # Build schema safely
         if tools:
@@ -459,6 +460,7 @@ async def llm_stream(
                 http_client=http_client, 
                 tracing_data={"tracer": tracer, "trace_id": trace_id, "parent_span_id": parent_span_id}
                 ):
+                
                 event_type = event["type"]
                 data = event["data"]
                 
