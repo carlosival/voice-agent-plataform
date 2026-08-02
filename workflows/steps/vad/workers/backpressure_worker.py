@@ -5,7 +5,7 @@ import asyncio
 from workflows.signals import WarmUp, AskUserStillThere, StartSpeaking, EndOfStream
 
 '''
-Consume utterance from VAD and keep in a queue (backpressure) until STT is ready
+Consume utterance from VAD and keep in a queue (backpressure)
 '''
 async def vad_backpressure(source: AsyncGenerator, queue: asyncio.Queue, is_closing: RefBool):
         try:

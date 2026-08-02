@@ -282,6 +282,7 @@ async def brain_bridge(source: AsyncGenerator, ctx: ExecContext) -> AsyncGenerat
 
     try:
         while True:
+            # suspends this coroutine if empty, not the loop
             item = await queue.get()
             if isinstance(item, EndOfStream):
                 yield item

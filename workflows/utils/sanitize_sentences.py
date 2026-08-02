@@ -1,4 +1,11 @@
-from workflows.steps.llm.config import BAD_PATTERNS, SENTENCE_ENDS
+SENTENCE_ENDS = {",", ".",  "\n", "\r", "\n\n", "\r\n", "!", "?", "…", "。"}
+BAD_PATTERNS = [
+            r"\*\*.*?\*\*",          # Markdown bold
+            r"\#+ .*",               # Markdown headers
+            r"<[^>]*>",              # XML/HTML tags (like <function=...></function>)
+            r"\[.*?\]",              # Bracketed text annotations
+            r"`{1,3}.*?`{1,3}",      # Code snippets
+        ]
 
 def sanitize_sentence(text: str) -> str:
         """

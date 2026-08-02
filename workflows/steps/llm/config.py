@@ -23,11 +23,3 @@ handler_provider = {
 }
 
 
-SENTENCE_ENDS = {",", ".",  "\n", "\r", "\n\n", "\r\n", "!", "?", "…", "。"}
-BAD_PATTERNS = [
-            r"\*\*.*?\*\*",          # Markdown bold
-            r"\#+ .*",               # Markdown headers
-            r"<[^>]*>",              # XML/HTML tags (like <function=...></function>)
-            r"\[.*?\]",              # Bracketed text annotations
-            r"`{1,3}.*?`{1,3}",      # Code snippets
-        ]

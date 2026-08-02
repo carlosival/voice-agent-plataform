@@ -1,12 +1,9 @@
 async def llm_stream(
-    source: AsyncGenerator,
+    text: str,
     ctx:    ExecContext,
-) -> AsyncGenerator:
+) -> [LLMEvent, ExecContext]:
     """
-    Streams LLM token-by-token via call_llm_stream.
-    Flushes to downstream on sentence boundaries so TTS starts early.
-    Only saves complete, uninterrupted responses to message_history.
-    Interrupted responses are logged and discarded to keep history clean.
+    Decides based on the context what inference provider to use and calls the provider.
     """
 
     current_task = None

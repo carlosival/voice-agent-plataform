@@ -1,0 +1,61 @@
+import asyncio
+from typing import Any
+from yaafpy import ExecContext
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+async def llm_stream(
+    input_data: Any,
+    ctx:    ExecContext,
+) -> asyncio.Queue:
+    """
+    Streams LLM token-by-token via call_llm_stream.
+    Flushes to downstream on sentence boundaries so TTS starts early.
+    Only saves complete, uninterrupted responses to message_history.
+    Interrupted responses are logged and discarded to keep history clean.
+    """
+
+    current_task = None
+    sentence_queue = None  # ← initialize to None, not unbound
+    http_client:     httpx.AsyncClient = ctx.shared_data["resources"]["http_client"]
+    message_history: InMemoryMemory = ctx.shared_data["message_history"]
+    tools: Dict[str, Tool] = ctx.shared_data.get("tools", {}) # Dict[str, Tool] smolagent
+    system_prompt = ctx.shared_data.get("system_prompt", "")
+    tracer = ctx.shared_data["resources"]["tracer"]
+    trace_id = ctx.shared_data["trace_context"]["trace_id"]
+    parent_span_id = ctx.shared_data["trace_context"]["parent_span_id"]
+    timeout_limit = 5.0
+    
+    # From context get all needed. Or let preprocess functions handle the context and populate.
+    
+    # 1. Create a queue to receive events from the worker
+    queue = asyncio.Queue()
+    result_queue = asyncio.Queue()
+
+
+    # 2. Start the llm inference worker as a background task
+    llm_worker_task = asyncio.create_task(llm_stream_openai_worker(
+        messages=messages,
+        tools=tools,
+        http_client=http_client,
+        tracing_data=tracing_data,
+        model=model,
+        prompt=prompt,
+        provider_url=provider_url,
+        api_key=api_key,
+        llm_config=llm_config,
+        queue=queue
+    ))
+
+    process_llm_response_task = asyncio.create_task(llm_response_worker(
+        input_queue=queue,
+        ctx=ctx,
+        output_queue=result_queue
+    ))
+
+    return result_queue
+
+    
+    

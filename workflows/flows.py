@@ -1,6 +1,6 @@
 import asyncio
 import httpx
-from yaafpy import StreamWorkflow, ExecContext
+from yaafpy import StreamWorkflow, ExecContext, Workflow
 import logging
 
 logger = logging.getLogger(__name__)
@@ -13,6 +13,18 @@ from workflows.steps import (
     tts,
     frame_sender,
 )
+
+
+def build_basic_agentic_voice_workflow() -> Workflow:
+    """Build and return the reusable workflow definition."""
+    wf = Workflow()
+    (
+        wf
+        .use(sanitize,           name="sanitize",    description="Sanitize the input")
+        .use(llm_stream,    name="llm",    description="Llama 3.1 streaming")
+        .use(action,           name="action",    description="Action")
+    )
+    return wf
 
 def build_voice_workflow() -> StreamWorkflow:
     """Build and return the reusable workflow definition."""

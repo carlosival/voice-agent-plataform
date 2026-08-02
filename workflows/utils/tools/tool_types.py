@@ -6,3 +6,9 @@ class ToolCallChunk:
     id:        str
     name:      str
     arguments: str  # raw JSON string, parsed by executor
+
+@dataclass
+class CodeChunk:
+    """This is a chunk of code Openai style """
+    id:        str
+    code:      str
