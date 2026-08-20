@@ -10,9 +10,9 @@ import asyncio
 @dataclass
 class PeerDependencies:
     ctx: ExecContext
-    audio_handler: Callable[[MediaStreamTrack], None] = None
-    video_handler: Callable[[MediaStreamTrack], None] = None
-    datachannel_handler: Callable[[RTCDataChannel], None] = None
+    audio_handler: Callable[[MediaStreamTrack, ExecContext], None] = None
+    video_handler: Callable[[MediaStreamTrack, ExecContext], None] = None
+    datachannel_handler: Callable[[RTCDataChannel, ExecContext], None] = None
     on_connected_fully: Callable[[], None] = None
     on_track: Callable[[MediaStreamTrack], None] = None
     on_ice_state_change: Callable[[str], None] = None

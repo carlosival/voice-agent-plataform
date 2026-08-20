@@ -1,3 +1,6 @@
+from typing import Dict
+from workflows.steps.llm.workers.llm_stream_openai_worker import call_llm_stream_openai_worker 
+
 async def llm_stream(
     text: str,
     ctx:    ExecContext,
@@ -167,14 +170,23 @@ async def llm_stream(
 
             if isinstance(item, str):
                 logger.info(f"[llm_stream] Received string Question: {repr(item)}")
-                await message_history.add_user_message(item)
-                msg = await  message_history.get_messages()
-                logger.info(f"[message_history] {msg}")
                 timeout_curr = 2.0
                 sentence_queue = Queue()  # ← fresh queue per request, not shared state
                 full_response = ""
                 tool_calls = []
-                current_task = create_task(llm_stream_worker(item, sentence_queue))
+                current_task = create_task(call_llm_stream_openai_worker(
+                    text=item,
+                    memory=message_history, 
+                    tools=tools, 
+                    http_client=http_client,
+                    tracing_data={"tracer": tracer, "trace_id": trace_id, "parent_span_id": parent_span_id},
+                    model=model,
+                    system_prompt=system_prompt,
+                    provider_url=provider_url,
+                    api_key=api_key,
+                    llm_config=llm_config,
+                    queue=sentence_queue,
+                    ))
                 # Consume from queue until None or Interrupted
                 while True:
                     try:
@@ -186,23 +198,12 @@ async def llm_stream(
                         )
 
 
-                        if isinstance(item_from_queue, list): # List of ToolCallChunk
+                        if isinstance(item_from_queue, list): # List of ToolCallChunk and results
                             
-                            # Could be sequential or parallel, as needed
-                            # Parallel execution via asyncio.gather if async tools
-                            results = await gather(*[execute_tool(tc, tools) for tc in item_from_queue])
-                            logger.info(f"[llm_stream] Tool call results: {results}")
-                            
-                            if EndOfStream in [type(r.get("result", None)) for r in results]:
-                                logger.info("[llm_stream] EndOfStream from tool result. Finishing conversation.")
-                                await message_history.add_ai_message("¡Hasta Luego!", None)
-                                yield EndOfStream()
-                                break
+                            for tool_chunk, result in item_from_queue:
+                                logger.info(f"[llm_stream] Tool call result: {tool_chunk.name} -> {result}")
 
-                            # Add tools calls and results to message history
-                            await message_history.add_tools_calls(item_from_queue)
-                            await message_history.add_tools_results(results)
-                            # Call LLM again with tool results
+                            # Call LLM again with tool results included
                             if current_task and not current_task.done():
                                 current_task.cancel()
                                 await gather(current_task, return_exceptions=True)
@@ -210,15 +211,39 @@ async def llm_stream(
                                 # I think is not need to clean the queue here, should be clean
                                 logger.info(f"[llm_stream_sentence_queue] is empty: {sentence_queue.empty()}")
                             
-                            current_task = create_task(llm_stream_worker(item, sentence_queue))
+                            current_task = create_task(call_llm_stream_openai_worker(
+                                            text=item,
+                                            memory=message_history, 
+                                            tools=tools, 
+                                            http_client=http_client,
+                                            tracing_data={"tracer": tracer, "trace_id": trace_id, "parent_span_id": parent_span_id},
+                                            model=model,
+                                            system_prompt=system_prompt,
+                                            provider_url=provider_url,
+                                            api_key=api_key,
+                                            llm_config=llm_config,
+                                            queue=sentence_queue,
+                                            ))
                             continue
                     
 
                         # 2. HANDLE RESULTS
                         if item_from_queue is None: # Normal finish
+                            await message_history.add_user_message(item)
                             await message_history.add_ai_message(full_response, None)
                             break
                         
+                        if isinstance(item_from_queue, EndOfStream):
+                            logger.info("[llm_stream] EndOfStream from LLM worker. Finishing conversation.")
+                            # Good bye message
+                            yield "Hasta luego"
+                            await message_history.add_user_message(item)
+                            await message_history.add_ai_message("Hasta luego", None)
+                            await asyncio.sleep(0.8) # Wait for the TTS to finish and send EndOfStream
+                            yield EndOfStream()
+                            break
+                            
+
                         if isinstance(item_from_queue, Exception):
                             logger.info(f"LLM: Exception in worker: {item_from_queue}")
                             yield "Lo siento, tuve un problema técnico al procesar su pregunta."

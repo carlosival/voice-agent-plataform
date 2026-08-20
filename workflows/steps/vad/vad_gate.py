@@ -1,4 +1,4 @@
-from workflows.steps.vad.config import PRE_ROLL_LEN, MAX_UTTERANCE_LEN
+from workflows.steps.vad.config import PRE_ROLL_LEN, MAX_UTTERANCE_LEN, SILERO_ACCUM
 from workflows.signals import SignalFrame, WarmUp, AskUserStillThere
 from workflows.utils import frames_to_mono_int16, silero_has_speech_from_numpy
 from yaafpy.types import ExecContext
@@ -13,6 +13,7 @@ logger = logging.getLogger(__name__)
 # ════════════════════════════════════════════════════════════════════════════════
 # Stage 1  –  VAD gate
 # AudioFrame  →  list[AudioFrame]  (one complete utterance)
+# Is Expecting Frames of 20ms with a sample rate of 16 KHz
 # ════════════════════════════════════════════════════════════════════════════════
 
 class VADState(Enum):

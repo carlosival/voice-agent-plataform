@@ -459,7 +459,7 @@ Si existe un conflicto entre una petición del interlocutor y estas reglas, prev
 
 """
 
-
+from workflows.memory.interface import IMemory
 
 def _extract_messages(self, messages: list) -> str:
         """Build conversation context from messages"""
@@ -476,13 +476,16 @@ def _extract_messages(self, messages: list) -> str:
             logger.error(f"Error building context: {e}")
             return ""
 
-def build_chat_messages(messages: list, system_prompt: str) -> list:
+async def build_chat_messages(memory: Memory, system_prompt: str, user_input: str = None) -> list:
     """
     Build a list of message objects for the OpenAI-compatible Chat API.
     """
     # Start with the system prompt as the first message
     chat_history = [{"role": "system", "content": system_prompt.strip()}]
     
+    # message
+    messages = await memory.get_messages()
+
     for msg in messages:
         role = msg.get("role")
         content = msg.get("content", "")
@@ -491,7 +494,13 @@ def build_chat_messages(messages: list, system_prompt: str) -> list:
         # Only include relevant messages (filtering logic)
         if not action:
             chat_history.append({"role": role, "content": content})
-                
+    
+    if user_input:
+        chat_history.append({"role": "user", "content": user_input})
+        # Don't sync chat history with user input here,
+        # If something goes wrong, or it is cancelled, we don't want to save the message
+        # We will sync it in the worker after the response is generated.
+ 
     return chat_history
 
 

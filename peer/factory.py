@@ -86,7 +86,7 @@ async def create_peer(peer_dependencies: PeerDependencies):
         if track.kind == "audio":
             # Create the task and add it to our managed set
             if peer_dependencies.audio_handler:
-                task = asyncio.create_task(peer_dependencies.audio_handler(track,peer_dependencies.ctx))
+                task = asyncio.create_task(peer_dependencies.audio_handler(track, peer_dependencies.ctx))
                 peer_session.add_task(task)
                 # Remove from set when done to prevent memory leak
                 # task.add_done_callback(pc._managed_tasks.discard)

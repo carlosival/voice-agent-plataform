@@ -1,7 +1,10 @@
 from aiortc.mediastreams import MediaStreamError, MediaStreamTrack
 from typing import AsyncGenerator
 import asyncio
+import av
 from workflows.steps.inputs.config import WAIT_FOR_TIMEOUT
+
+
 
 # ──────────────────────────────────────────────
 # Stage 0 — async generator wrapping the 
@@ -9,6 +12,11 @@ from workflows.steps.inputs.config import WAIT_FOR_TIMEOUT
 # ──────────────────────────────────────────────
 async def track_frames(track: MediaStreamTrack) -> AsyncGenerator[AudioFrame, None]:
     frame_count = 0
+    resampler = av.AudioResampler(
+            format="s16",
+            layout="mono",
+            rate=16000,
+        )
     try:
         while True:
             try:
@@ -31,7 +39,12 @@ async def track_frames(track: MediaStreamTrack) -> AsyncGenerator[AudioFrame, No
 
                 if frame_count % 100 == 0:
                     logger.info(f"Track received frame {frame_count}")
-                yield frame
+                
+                # 48k stereo -> 16k mono
+                output_frames = resampler.resample(frame)
+
+                for output_frame in output_frames:
+                    yield output_frame
             except asyncio.TimeoutError:
                 logger.info("Track: No audio for 120 seconds, connection is likely dead")
                 break    

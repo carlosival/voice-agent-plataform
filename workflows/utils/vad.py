@@ -125,11 +125,12 @@ def silero_has_speech_from_numpy(
     threshold: float = 0.7,
 ) -> bool:
     model  = _get_silero_model()
-    pcm_16 = _downsample_to_silero(pcm)
+    # If every source frame give 16KHz frame, then we don't need to downsample
+    # pcm_16 = _downsample_to_silero(pcm)
 
     chunk_size = 512
-    for i in range(0, len(pcm_16), chunk_size):
-        chunk = pcm_16[i:i + chunk_size]
+    for i in range(0, len(pcm), chunk_size):
+        chunk = pcm[i:i + chunk_size]
         if len(chunk) < chunk_size:
             break
         audio_tensor = torch.from_numpy(
