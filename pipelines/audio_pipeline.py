@@ -49,6 +49,11 @@ async def audio_pipeline(input_track, ctx):
     try:
         async for _ in VOICE_WORKFLOW.run(source, ctx):
             pass
+    
+    # Place to add post pipeline HOOKS, could be async or sync
+    # can be add at runtime in ctx.shared_data["hooks"]["post_pipeline_hooks"]
+    # TODO: Implement this
+
     except asyncio.CancelledError:
         logger.info("Pipeline cancelled (Normal shutdown or client disconnect)")
         final_closure_status = "client_disconnect_or_barge_in_shutdown"
