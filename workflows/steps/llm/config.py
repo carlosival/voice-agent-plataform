@@ -1,4 +1,3 @@
-
 url_provider = {
     "openai": "https://api.openai.com/v1",
     "ollama": "http://localhost:11434/v1",
@@ -9,7 +8,7 @@ url_provider = {
 }
 
 
-handler_provider = {
+provider_models_supported = {
     "openai": {
         "gpt-3.5-turbo": 1,
         

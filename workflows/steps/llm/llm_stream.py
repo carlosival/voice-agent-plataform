@@ -1,5 +1,6 @@
 from typing import Dict
 from workflows.steps.llm.workers.llm_stream_openai_worker import call_llm_stream_openai_worker 
+from workflows.steps.llm.workers.worker_factory_provider import worker_factory_provider
 
 async def llm_stream(
     text: str,
@@ -15,6 +16,10 @@ async def llm_stream(
     message_history: InMemoryMemory = ctx.shared_data["message_history"]
     tools: Dict[str, Tool] = ctx.shared_data.get("tools", {}) # Dict[str, Tool] smolagent
     system_prompt = ctx.shared_data.get("system_prompt", "")
+    provider_name = ctx.config["llm"]["provider_name"]
+    model = ctx.config["llm"]["model"]
+    provider_url = ctx.config["llm"]["provider_url"]
+    api_key = ctx.config["llm"]["api_key"]
     tracer = ctx.shared_data["resources"]["tracer"]
     trace_id = ctx.shared_data["trace_context"]["trace_id"]
     parent_span_id = ctx.shared_data["trace_context"]["parent_span_id"]
@@ -174,19 +179,23 @@ async def llm_stream(
                 sentence_queue = Queue()  # ← fresh queue per request, not shared state
                 full_response = ""
                 tool_calls = []
-                current_task = create_task(call_llm_stream_openai_worker(
-                    text=item,
-                    memory=message_history, 
-                    tools=tools, 
-                    http_client=http_client,
-                    tracing_data={"tracer": tracer, "trace_id": trace_id, "parent_span_id": parent_span_id},
-                    model=model,
-                    system_prompt=system_prompt,
-                    provider_url=provider_url,
-                    api_key=api_key,
-                    llm_config=llm_config,
-                    queue=sentence_queue,
-                    ))
+                
+                # The extra function to call for a llm provider bring flexibility at runtime
+                # It allows to add new providers it one is down 
+                current_task = create_task(get_llm_provider_worker(provider_name, model)(
+                                            text=item,
+                                            memory=message_history, 
+                                            tools=tools, 
+                                            http_client=http_client,
+                                            tracing_data={"tracer": tracer, "trace_id": trace_id, "parent_span_id": parent_span_id},
+                                            model=model,
+                                            system_prompt=system_prompt,
+                                            provider_url=provider_url,
+                                            api_key=api_key,
+                                            llm_config=llm_config,
+                                            queue=sentence_queue,
+                                            ))
+                
                 # Consume from queue until None or Interrupted
                 while True:
                     try:
@@ -211,7 +220,9 @@ async def llm_stream(
                                 # I think is not need to clean the queue here, should be clean
                                 logger.info(f"[llm_stream_sentence_queue] is empty: {sentence_queue.empty()}")
                             
-                            current_task = create_task(call_llm_stream_openai_worker(
+                            # The extra function to call for a llm provider bring flexibility at runtime
+                            # It allows to add new providers it one is down or not available  
+                            current_task = create_task(get_llm_provider_worker(provider_name, model)(
                                             text=item,
                                             memory=message_history, 
                                             tools=tools, 
@@ -266,6 +277,9 @@ async def llm_stream(
                             logger.warning("LLM: Producer slow Thinking...")
                             yield "Estoy pensando"
                             timeout_curr += 2.0
+                            # Maybe is good to try another provider or default beside current configured.
+                            # It will add more robustness to the system.
+                            # Refactor: Add a fallback provider mechanism below.
                             continue
                         else:
                             logger.error("LLM: Producer cancelled. Timeout.")

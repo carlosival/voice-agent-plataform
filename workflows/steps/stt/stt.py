@@ -1,11 +1,17 @@
 from workflows.steps.stt.config import DEBUG, SAVE_TO_S3
 from workflows.steps.stt.workers.debug_stt import debug_stt
 from workflows.steps.stt.workers.save_utterance_s3 import save_s3
-from workflows.steps.stt.workers.stt_openai import call_stt_openai
+from workflows.steps.stt.workers.stt_factory_provider import get_stt_provider
 from yaafpy.types import ExecContext
 from typing import AsyncGenerator
 from workflows.signals import EndOfStream, AskUserStillThere, StartSpeaking, WarmUp 
 import asyncio
+
+def cancel_all_tasks(tasks: list[asyncio.Task]):
+    for task in tasks:
+        if not task.done():
+            task.cancel()
+    tasks.clear()
 
 # ════════════════════════════════════════════════════════════════════════════════
 # TRANSFORM 2  –  STT
@@ -22,15 +28,19 @@ async def stt(
     Receives utterances, handles interruptions via task cancellation,
     and logs raw PCM to disk for debugging.
     """
-
-    current_task = None
+    tasks = []
+    
     http_client: httpx.AsyncClient = ctx.shared_data["resources"]["http_client"]
+    stt_provider_name = ctx.config["stt"]["provider_name"]
+    stt_model         = ctx.config["stt"]["model"]
+    stt_language      = ctx.config["stt"]["language"]
+    stt_api_key       = ctx.config["stt"]["api_key"]
+    stt_base_url      = ctx.config["stt"]["base_url"]
 
     async for item in source:
 
         if isinstance(item, EndOfStream):
-            if current_task and not current_task.done():
-                current_task.cancel()
+            cancel_all_tasks(tasks)
             yield item
             break
 
@@ -40,8 +50,7 @@ async def stt(
    
         # If we get a Stop signal, kill the Whisper task immediately
         if isinstance(item, StartSpeaking):
-            if current_task and not current_task.done():
-                current_task.cancel()
+            cancel_all_tasks(tasks)
             yield item
 
         if isinstance(item, WarmUp):
@@ -51,20 +60,21 @@ async def stt(
         if isinstance(item, list): # This is the actual AudioBuffer
             
             if DEBUG:
-                asyncio.create_task(debug_stt(item))
+               asyncio.create_task(debug_stt(item))
             
             if SAVE_TO_S3:
                 asyncio.create_task(save_s3(item))
 
-            # Launch Whisper as a task so we can cancel it if a StopAndClear arrives later
-            current_task = asyncio.create_task(call_stt_openai(http_client, item))
+            # Launch STT provider like Whisper as a task so we can cancel it if a StopAndClear arrives later
+            # Refactor: Pass at runtime the provider provider url, api, model,language, etc
+            stt_task = asyncio.create_task((get_stt_provider(stt_provider_name))(item, model=stt_model, language=stt_language, api_key=stt_api_key, base_url=stt_base_url, http_client=http_client))
+            tasks.append(stt_task)
 
             try:
-                transcript = await current_task
+                transcript = await stt_task
                 if transcript: yield transcript
             except asyncio.CancelledError:
                 logger.info("STT: Task killed by StartSpeaking signal.")
             finally:
                 # Cleanup task if it was orphaned by an error or cancellation
-                if not current_task.done():
-                    current_task.cancel()
+                cancel_all_tasks(tasks)
