@@ -39,8 +39,14 @@ class AudioConverter:
         self.input_format = input_format
         self.output_format = output_format
 
+
+
     def convert(self, audio_data: np.ndarray) -> np.ndarray:
-        if self.input_format == self.output_format:
+        if self.input_format.encoding == self.output_format.encoding and \
+            self.input_format.sample_rate == self.output_format.sample_rate and \
+            self.input_format.channels == self.output_format.channels and \
+            self.input_format.container == self.output_format.container and \
+            self.input_format.sample_width == self.output_format.sample_width:
             return audio_data
 
         # 1. Reshape flat interleaved data -> (frames, channels)

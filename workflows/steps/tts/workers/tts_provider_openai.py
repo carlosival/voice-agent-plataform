@@ -4,8 +4,7 @@
 async def tts_worker(client: httpx.AsyncClient, 
                         output_track, 
                         tts_queue, 
-                        provider_name: str
-                        queue
+                        provider_name: str,
                         **kwargs
                     ):
         while True:
@@ -22,11 +21,12 @@ async def tts_worker(client: httpx.AsyncClient,
                     source_chunk = AudioFrame.from_bytes(chunk_bytes, format=TWILIO_FORMAT)
                     if converter is None:
                         converter = StatefulAudioConverter(
-                            source_format=source_chunk.format,
-                            target_format=TWILIO_FORMAT,
+                            source_format=get_stt_provider_format(provider_name),
+                            target_format=get_output_format(output_track),
                         )
 
                     destination_chunk = converter.convert(source_chunk)
+                    output_track.add_audio(destination_chunk.to_bytes())
                     
                 
                 if frame_count > 0:

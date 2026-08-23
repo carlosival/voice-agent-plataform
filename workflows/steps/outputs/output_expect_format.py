@@ -34,7 +34,17 @@ TELNYX_AUDIO_FORMAT = AudioFormat(
 )
 
 
-def get_output_expect_format(output) -> AudioFormat:
+def get_stt_provider_format(provider_name: str) -> AudioFormat:
+    if provider_name == "openai":
+        return OPENAI_STT_FORMAT
+    elif provider_name == "groq":
+        return GROQ_STT_FORMAT
+    elif provider_name == "telnyx":
+        return SPEACHES_STT_FORMAT
+    else:
+        raise ValueError(f"Unknown provider: {provider_name}")
+
+def get_output_format(output) -> AudioFormat:
     """
     Returns the expected audio format for the given output.
     """
