@@ -25,29 +25,78 @@ STATIC_DIR   = Path(os.getenv("STATIC_DIR", "./static"))
 SAMPLE_RATE  = 48000
 SAMPLES_PER_FRAME = 960            # 20ms at 48kHz
 BYTES_PER_FRAME   = SAMPLES_PER_FRAME * 2  # int16 = 2 bytes per sample = 1920 bytes
+WAV_MIN_HEADER_PROBE = 12          # 'RIFF'(4) + size(4) + 'WAVE'(4)
+MAX_HEADER_SEARCH_BYTES = 1 << 16  # 64 KB safety cap while hunting for 'data'
 
+@dataclass
+class WavFmt:
+    channels: int
+    sample_rate: int
+    bits_per_sample: int
+
+def _find_wav_data(buf: bytes) -> tuple[Optional[int], Optional[WavFmt]]:
+    pos = 12
+    fmt = None
+    while pos + 8 <= len(buf):
+        chunk_id = buf[pos:pos + 4]
+        size = struct.unpack("<I", buf[pos + 4:pos + 8])[0]
+        body = pos + 8
+
+        if chunk_id == b"fmt " and body + size <= len(buf):
+            _audio_format, channels, sample_rate = struct.unpack("<HHI", buf[body:body + 8])
+            bits_per_sample = struct.unpack("<H", buf[body + 14:body + 16])[0]
+            fmt = WavFmt(channels, sample_rate, bits_per_sample)
+        elif chunk_id == b"data":
+            return body, fmt
+
+        pos = body + size + (size & 1)
+    return None, fmt
+
+def _validate_wav_fmt(fmt: WavFmt, sample_rate: int, strict: bool = False) -> None:
+    """
+    Compare a parsed WAV 'fmt ' chunk against the AudioFormat the caller
+    configured as input_format. Raises WavFormatMismatch on disagreement.
+
+    strict=False downgrades to a warning-friendly caller (you decide what
+    to do with the returned issues) instead of raising — useful if you'd
+    rather clamp/adapt than hard-fail mid-stream.
+    """
+    issues = []
+
+
+    if fmt.sample_rate != sample_rate:
+        issues.append(
+            f"sample rate mismatch: WAV declares {fmt.sample_rate} Hz, "
+            f"expected {sample_rate} Hz"
+        )
+
+        logger.warning(
+            f"sample rate mismatch: WAV declares {fmt.sample_rate} Hz, "
+            f"expected {sample_rate} Hz"
+        )
+
+
+    if issues and strict:
+        raise Exception(
+            "TTS provider's WAV header does not match configured input_format: "
+            + "; ".join(issues)
+        )
 
 # ─── TTS Call ─────────────────────────────────────────────────────────────────
 
-async def call_tts(http_client: httpx.AsyncClient, text: str) -> bytes:
+async def call_tts( text: str, provider: str, tts_model: str, tts_voice: str, tts_base_url: str, tts_api_key: str, response_format: str, sample_rate: int, http_client: httpx.AsyncClient,) -> AudioChunk:
     """
     Call Speaches TTS endpoint (OpenAI-compatible /v1/audio/speech).
     Returns raw WAV bytes — caller decides what to do with them.
     """
- 
+    payload = make_payload(text, provider, tts_model, tts_voice, response_format, sample_rate)
+    
     resp = await http_client.post(
-        f"{TTS_BASE_URL}/v1/audio/speech",
-        json={
-            "model":           TTS_MODEL,
-            "input":           text,
-            "voice":           TTS_VOICE,
-            "response_format": "wav",
-            "sample_rate": SAMPLE_RATE
-            
-        },
+            f"{TTS_BASE_URL}/v1/audio/speech",
+            json=payload,
     )
     resp.raise_for_status()
-    return resp.content                         # ✅ raw bytes — push to WebRTC or save
+    return resp.content                         # ✅ AudioChunk
 
 
 async def call_tts_save(http_client: httpx.AsyncClient, text: str) -> str:
@@ -70,19 +119,16 @@ async def call_tts_save(http_client: httpx.AsyncClient, text: str) -> str:
 # ─── TTS Call — streaming ─────────────────────────────────────────────────────
 
 async def call_tts_stream(
-    http_client: httpx.AsyncClient,
     text: str,
-    chunk_size: int = 4096,        # bytes per chunk (~2ms of audio at 48kHz)
-    debug: bool = False,                                        # ← new
-    debug_path: str = "./static/tts_debug"  # ← new
+    payload: dict,
+    base_url: str = TTS_BASE_URL,
+    api_key: str = TTS_API_KEY,
+    http_client: httpx.AsyncClient = None,
 ) -> AsyncGenerator[bytes, None]:
     
     """
-    Streams raw PCM audio in 20ms frames. 
+    Streams raw PCM audio. 
     Explicitly handles the difference between WAV (with header) and PCM (raw).
-    This format is specifically optimized for WebRTC and low-latency VoIP applications. 
-    Each 1,920-byte chunk you receive is ready to be pushed directly into an audio track buffer 
-    without further processing.
     """
     buffer = b""
     header_stripped = False
@@ -95,60 +141,65 @@ async def call_tts_stream(
 
     # 1. Speaches, Groq, OpenAI, etc. requires an Authorization header with your API key
     headers = {
-        "Authorization": f"Bearer {TTS_API_KEY}"
+        "Authorization": f"Bearer {api_key}"
     }
 
     # API Request
     # Note: Use response_format="pcm" for raw data to avoid manual header stripping
     async with http_client.stream(
         "POST",
-        f"{TTS_BASE_URL}/v1/audio/speech",
+        f"{base_url}/v1/audio/speech",
         headers=headers,  # ← Added headers
-        json={
-            "model": TTS_MODEL,
-            "input": text,
-            "voice": TTS_VOICE,
-            "response_format": "pcm",  # Requested raw PCM
-            "sample_rate": SAMPLE_RATE,
-        },
+        json=payload,
         timeout=httpx.Timeout(timeout=None, connect=5.0)
     ) as resp:
         resp.raise_for_status()
 
         async for chunk in resp.aiter_bytes():
-            if not chunk: # Explicit EOF check
+            if not chunk:
                 break
-            buffer += chunk
 
-            # Yield chunks as soon as we have enough for a 20ms frame
-            while len(buffer) >= BYTES_PER_FRAME:
-                frame = buffer[:BYTES_PER_FRAME]
-                buffer = buffer[BYTES_PER_FRAME:]
-                
-                if debug:
-                    debug_pcm.extend(frame)
-                yield frame
+            if header_stripped:
+                out = chunk
+            else:
+                buffer += chunk
+                out = None
 
-        # Final Flush: If data is left over, pad it with silence to complete the frame
-        if len(buffer) > 0:
-            padding = BYTES_PER_FRAME - len(buffer)
-            final_frame = buffer + (b"\x00" * padding)
+                if decided_wav is None and len(buffer) >= WAV_MIN_HEADER_PROBE:
+                    decided_wav = (
+                        buffer[0:4] == b"RIFF"
+                        and buffer[8:12] == b"WAVE"
+                    )
+                    if decided_wav is False:
+                        out = buffer
+                        buffer = b""
+                        header_stripped = True
+
+                if decided_wav and not header_stripped:
+                    if len(buffer) > MAX_HEADER_SEARCH_BYTES:
+                        raise ValueError(
+                            "Could not locate 'data' subchunk within "
+                            f"{MAX_HEADER_SEARCH_BYTES} bytes — malformed WAV header"
+                        )
+                    data_offset, fmt = _find_wav_data_offset(buffer)
+                    if data_offset is not None:
+                        if fmt is None:
+                            raise ValueError(
+                                "WAV stream reached 'data' subchunk without "
+                                "a preceding 'fmt ' subchunk — cannot validate format"
+                            )
+                        _validate_wav_fmt(fmt, sample_rate)
+                        out = buffer[data_offset:]
+                        buffer = b""
+                        header_stripped = True
+
+                if not out:
+                    continue
+
             if debug:
-                debug_pcm.extend(final_frame)
-            yield final_frame
+                debug_pcm.extend(out)
 
-
-    # --- THE INDEPENDENT TASK ---
-    if debug and debug_pcm:
-        # Generate a unique filename so concurrent streams don't overwrite each other
-        unique_path = os.path.join(debug_path, f"tts_{uuid.uuid4().hex}.wav")
-        Path(debug_path).mkdir(parents=True, exist_ok=True)
-        
-        # Fire and forget: Move the bytes to a task. 
-        # We pass a copy (bytes()) of the accumulator to ensure thread safety.
-        asyncio.create_task(
-            asyncio.to_thread(save_debug_wav, unique_path, debug_pcm, SAMPLE_RATE)
-        )
+            yield out
 
 
 

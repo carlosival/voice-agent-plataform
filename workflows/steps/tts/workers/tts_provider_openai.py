@@ -1,42 +1,33 @@
-import asyncio
 
-# ════════════════════════════════════════════════════════════════════════════════
-# TRANSFORM 4  –  TTS
-# str  →  bytes  (WAV blob per sentence)
-# ════════════════════════════════════════════════════════════════════════════════
-
-async def tts(
-    source: AsyncGenerator,
-    ctx:    ExecContext,
-) -> AsyncGenerator[bytes, None]:
-    """
-    Calls Speaches Kokoro-82M per sentence chunk via call_tts_stream.
-    Forwards raw PCM byte chunks as they arrive for minimal latency.
-    Skips synthesis entirely if speaking_event was set between LLM chunks.
-    """
-
-    tasks= []
-    http_client:    httpx.AsyncClient   = ctx.shared_data["resources"]["http_client"]
-    output_track: AudioOutputTrack = ctx.shared_data["resources"]["output_track"]
-    current_task = None
-    tts_queue = asyncio.Queue()
     
-    # 3. DEFINE THE SYNTHESIS WORKER
-    async def tts_worker(client: httpx.AsyncClient, track: AudioOutputTrack):
+# 3. DEFINE THE SYNTHESIS WORKER
+async def tts_worker(client: httpx.AsyncClient, 
+                        output_track, 
+                        tts_queue, 
+                        provider_name: str
+                        queue
+                        **kwargs
+                    ):
         while True:
             try:
                 text = await tts_queue.get()
                 if text is None:
                     break
                 
-                gen = call_tts_stream(http_client=http_client, text=text, debug=True)
+                # get a payload  
+                payload = {}  
                 frame_count = 0
                 
-                async for pcm_chunk in gen:
-                    # The code will only block here if 'call_tts_stream' hangs.
-                    # As long as chunks are coming, this keeps running.
-                    await track.push_pcm_bytes(pcm_chunk)
-                    frame_count += 1
+                async for chunk_bytes in call_tts_stream(http_client=http_client, text=text, debug=True):
+                    source_chunk = AudioFrame.from_bytes(chunk_bytes, format=TWILIO_FORMAT)
+                    if converter is None:
+                        converter = StatefulAudioConverter(
+                            source_format=source_chunk.format,
+                            target_format=TWILIO_FORMAT,
+                        )
+
+                    destination_chunk = converter.convert(source_chunk)
+                    
                 
                 if frame_count > 0:
                     await track.add_silence(duration_frames=20)
