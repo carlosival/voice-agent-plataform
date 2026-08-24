@@ -18,7 +18,13 @@ async def tts_worker(client: httpx.AsyncClient,
                 frame_count = 0
                 
                 async for chunk_bytes in call_tts_stream(http_client=http_client, text=text, debug=True):
-                    source_chunk = AudioFrame.from_bytes(chunk_bytes, format=TWILIO_FORMAT)
+                    # I don't really need to convert the bytes to an AudioFrame
+                    # I can just add the bytes directly to the output track
+                    # But I need to make sure the format is correct
+                    # The format is PCM_S16LE at 24000 Hz
+                    # The output track is PCM_S16LE at 8000 Hz
+                    # So I need to convert the format
+                    #source_chunk = AudioFrame.from_bytes(chunk_bytes, format=TWILIO_FORMAT)
                     if converter is None:
                         converter = StatefulAudioConverter(
                             source_format=get_stt_provider_format(provider_name),
