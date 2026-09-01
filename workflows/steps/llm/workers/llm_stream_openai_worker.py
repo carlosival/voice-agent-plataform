@@ -1,7 +1,7 @@
 import asyncio
 from typing import Optional
 from httpx import AsyncClient
-from workflows.utils.memory.interfaces import Memory
+from workflows.utils.memory import IMemory
 from workflows.utils.context.message_context_builder import build_chat_messages
 #from workflows.utils.tools.tools_builder import get_tool_json_schema # Refactor:Adding this later
 

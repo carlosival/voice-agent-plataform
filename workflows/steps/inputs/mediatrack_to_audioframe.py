@@ -2,7 +2,7 @@ from aiortc.mediastreams import MediaStreamError, MediaStreamTrack
 from typing import AsyncGenerator
 import asyncio
 import av
-from workflows.steps.inputs.config import WAIT_FOR_TIMEOUT
+from .config import WAIT_FOR_TIMEOUT
 
 
 

@@ -19,7 +19,7 @@ asyncpg==0.29.0
 redis==5.0.4
 
 # Workflow Orchestration
-yaafpy>=0.2.3 #To handle  Workflow Orchestration
+yaafpy==0.2.3 #To handle  Workflow Orchestration
 
 # Tools Calling
 smolagents>=1.24.0 # https://github.com/smol-ai/smolagent To handle tool calling

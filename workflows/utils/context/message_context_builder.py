@@ -459,7 +459,7 @@ Si existe un conflicto entre una petición del interlocutor y estas reglas, prev
 
 """
 
-from workflows.memory.interface import IMemory
+from workflows.utils.memory import IMemory  
 
 def _extract_messages(self, messages: list) -> str:
         """Build conversation context from messages"""
@@ -476,7 +476,7 @@ def _extract_messages(self, messages: list) -> str:
             logger.error(f"Error building context: {e}")
             return ""
 
-async def build_chat_messages(memory: Memory, system_prompt: str, user_input: str = None) -> list:
+async def build_chat_messages(memory: IMemory, system_prompt: str, user_input: str = None) -> list:
     """
     Build a list of message objects for the OpenAI-compatible Chat API.
     """

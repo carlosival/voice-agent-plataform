@@ -1,4 +1,4 @@
-from workflows.steps.vad.config import PRE_ROLL_LEN, MAX_UTTERANCE_LEN, SILERO_ACCUM
+from .config import PRE_ROLL_LEN, MAX_UTTERANCE_LEN, SILERO_ACCUM
 from workflows.signals import SignalFrame, WarmUp, AskUserStillThere
 from workflows.utils import frames_to_mono_int16, silero_has_speech_from_numpy
 from yaafpy.types import ExecContext

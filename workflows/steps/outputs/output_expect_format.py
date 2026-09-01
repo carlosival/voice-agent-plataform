@@ -1,6 +1,7 @@
-from workflows.steps.outputs.types import AudioFormat
+
 import numpy as np
 from enum import Enum
+from dataclasses import dataclass
 
 # --- Assumed shape of your Encoding enum; align with your real definition ---
 class Encoding(str, Enum):
@@ -36,8 +37,9 @@ class AudioFormat:
     encoding: Encoding
     sample_rate: int
     channels: int
-    container: Container = "raw"
     sample_width: int
+    container: Container = "raw"
+    
 
 
 @dataclass

@@ -1,9 +1,9 @@
-from workflows.steps.vad.types import RefBool
+from .types import RefBool
 from yaafpy.types import ExecContext
 from typing import AsyncGenerator
-from workflows.steps.vad.workers.backpressure_worker import vad_backpressure
+from .workers.backpressure_worker import vad_backpressure
 from workflows.signals import EndOfStream
-from workflows.steps.vad.config import QUEUE_BACKPRESSURE_MAXSIZE
+from .config import QUEUE_BACKPRESSURE_MAXSIZE
 
 import logger
 import asyncio

@@ -7,10 +7,19 @@ async def tts_worker(client: httpx.AsyncClient,
                         provider_name: str,
                         **kwargs
                     ):
+        
+        converter = StatefulAudioConverter(
+                            source_format=get_stt_provider_format(provider_name),
+                            target_format=get_output_format(output_track),
+                        )
         while True:
             try:
                 text = await tts_queue.get()
                 if text is None:
+                    # flush the converter or padding the converter with silence to make sure the last chunk is not lost
+                    # send to the output track
+                    #output_track.add_audio(converter.flush())
+                    
                     break
                 
                 # get a payload  
@@ -25,14 +34,9 @@ async def tts_worker(client: httpx.AsyncClient,
                     # The output track is PCM_S16LE at 8000 Hz
                     # So I need to convert the format
                     #source_chunk = AudioFrame.from_bytes(chunk_bytes, format=TWILIO_FORMAT)
-                    if converter is None:
-                        converter = StatefulAudioConverter(
-                            source_format=get_stt_provider_format(provider_name),
-                            target_format=get_output_format(output_track),
-                        )
 
-                    destination_chunk = converter.convert(source_chunk)
-                    output_track.add_audio(destination_chunk.to_bytes())
+                    destination_chunk = converter.convert(chunk_bytes)
+                    output_track.add_audio(destination_chunk)
                     
                 
                 if frame_count > 0:
@@ -47,62 +51,3 @@ async def tts_worker(client: httpx.AsyncClient,
                 logger.error(f"TTS Worker Error: {e}")
 
     
-    # 1. Warm up the track for first time
-    #await output_track.add_silence(duration_frames=15)
-
-    current_task = create_task(tts_worker(http_client, output_track))
-
-    try:
-        async for sentence in source:
-            if isinstance(sentence, WarmUp):
-                logger.info(f"TTS received WarmUp signal.")
-                await output_track.add_silence(duration_frames=50)
-                await tts_queue.put("¡Hola! ¿Cómo puedo ayudarte?")
-
-            if isinstance(sentence, EndOfStream):
-                logger.info("TTS: EndOfStream received. Cleaning up.")
-                # Optional: Send a goodbye message before killing
-                await wait_for(tts_queue.put("¡Hasta luego!"), timeout=2.0) 
-                await wait_for(tts_queue.put(None), timeout=2.0)
-                break
-            # 1. SIGNAL HANDLING (The "Kill Switch")
-            if isinstance(sentence, StartSpeaking):
-                logger.info("[AUDIO_KILL] TTS received StartSpeaking. Purging output track.")
-                # Clear pending sentences
-                while not tts_queue.empty():
-                    tts_queue.get_nowait()
-                # Cancel whatever is currently synthesizing
-                if current_task and not current_task.done():
-                    current_task.cancel()
-                    try:
-                        await current_task
-                    except CancelledError:
-                        pass
-                output_track.purge()
-                # Restart the sequential worker
-                current_task = create_task(tts_worker(http_client, output_track))
-                continue
-
-            # 2. DATA HANDLING (The Sentence)
-            if isinstance(sentence, str):
-                logger.info(f"TTS received sentence: '{sentence}'")
-                await wait_for(tts_queue.put(sentence), timeout=2.0)
-            
-            # 3. ASK USER STILL THERE
-            if isinstance(sentence, AskUserStillThere):
-                logger.info("TTS received AskUserStillThere signal.")
-                if tts_queue.empty():
-                    await wait_for(tts_queue.put("¿Te puedo ayudar en algo más?"), timeout=2.0)
-            
-    except Exception as e:
-        logger.error(f"TTS Main Loop Exception: {e}")
-        raise
-    finally:
-        await wait_for(tts_queue.put(None), timeout=2.0)  # shutdown sentinel
-        if current_task and not current_task.done():
-            current_task.cancel()
-        # This is critical for yaafpy
-        raise WorkflowAbortException("End of stream.")
-
-    if False: yield  # ← makes Python treat this as an async generator function 
-

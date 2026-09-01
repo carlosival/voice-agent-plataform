@@ -1,8 +1,8 @@
 from typing import List, Dict, Optional
-from .interfaces import Memory
+from .interfaces import IMemory
 import asyncio
 
-class InMemoryMemory(Memory):
+class InMemoryMemory(IMemory):
     def __init__(self, in_memory: Optional[List[Dict]] = None, message_limit = 100):
         self.in_memory = in_memory or []
         self.lock = asyncio.Lock()

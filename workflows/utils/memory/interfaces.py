@@ -1,7 +1,7 @@
 
 from typing import Protocol, List, Dict
 
-class Memory(Protocol):
+class IMemory(Protocol):
     
     async def add_user_message(self, message: str)-> bool:
         ...
