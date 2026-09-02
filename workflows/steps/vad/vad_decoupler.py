@@ -5,9 +5,10 @@ from .workers.backpressure_worker import vad_backpressure
 from workflows.signals import EndOfStream
 from .config import QUEUE_BACKPRESSURE_MAXSIZE
 
-import logger
+import logging
 import asyncio
 
+logger = logging.getLogger(__name__)
 
 # ════════════════════════════════════════════════════════════════════════════════
 # TRANSFORM 1.5  –  VAD Decoupler applying backpressure

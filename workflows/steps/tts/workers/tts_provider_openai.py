@@ -1,3 +1,6 @@
+import logging
+from workflows.steps.outputs import AudioConverter, get_stt_provider_format, get_output_format
+from workflows.steps.tts.utils import call_tts_stream
 
     
 # 3. DEFINE THE SYNTHESIS WORKER
@@ -8,7 +11,7 @@ async def tts_worker(client: httpx.AsyncClient,
                         **kwargs
                     ):
         
-        converter = StatefulAudioConverter(
+        converter = AudioConverter(
                             source_format=get_stt_provider_format(provider_name),
                             target_format=get_output_format(output_track),
                         )
@@ -36,13 +39,14 @@ async def tts_worker(client: httpx.AsyncClient,
                     #source_chunk = AudioFrame.from_bytes(chunk_bytes, format=TWILIO_FORMAT)
 
                     destination_chunk = converter.convert(chunk_bytes)
-                    output_track.add_audio(destination_chunk)
-                    
-                
-                if frame_count > 0:
-                    await track.add_silence(duration_frames=20)
-                    logger.info(f"TTS Worker: Finished {frame_count} frames for: {text}")
-                
+                    await output_track.push_pcm(destination_chunk)
+
+                # End of TTS stream
+                pcm = converter.flush()
+
+                if pcm:
+                    await output_track.push_pcm(pcm)
+                        
             except CancelledError:
                 # Still vital for barge-in!
                 logger.debug("TTS Worker: Cancelled (Barge-in).")

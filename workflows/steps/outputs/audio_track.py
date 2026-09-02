@@ -3,6 +3,7 @@ import fractions
 import time
 import numpy as np
 from av import AudioFrame
+import av
 from aiortc import MediaStreamTrack
 from aiortc.mediastreams import MediaStreamError
 import logging
@@ -78,7 +79,7 @@ class AudioOutputTrack(MediaStreamTrack):
         
         
 
-    async def push_audio(self, pcm: np.ndarray):
+    async def push_pcm(self, pcm: np.ndarray):
         """Push a numpy int16 array — chunks it into 10ms frames."""
         pcm = pcm.astype(np.int16)
         for i in range(0, len(pcm), SAMPLES_PER_10MS):
@@ -112,12 +113,12 @@ class AudioOutputTrack(MediaStreamTrack):
                     f.to_ndarray().flatten() for f in resampled_frames
                 ]).astype(np.int16)
 
-            await self.push_audio(pcm)
+            await self.push_pcm(pcm)
 
 
-    async def push_pcm_bytes(self, raw_bytes: bytes):
+    async def push_bytes(self, raw_bytes: bytes):
         """Push raw PCM bytes — converts to int16 array and chunks."""
-        await self.push_audio(np.frombuffer(raw_bytes, dtype=np.int16)) 
+        await self.push_pcm(np.frombuffer(raw_bytes, dtype=np.int16)) 
 
     
     def purge(self):

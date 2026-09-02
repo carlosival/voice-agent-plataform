@@ -12,13 +12,17 @@ SAMPLE_RATE = 48000
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 def frames_to_pcm(frames: list[np.ndarray]) -> bytes:
-
+    """Raw PCM bytes from aiortc frames — correct stereo→mono handling."""
     return frames_to_mono_int16(frames).tobytes()
 
 # ─── Primitive 1 — single frame to numpy ──────────────────────────────────────
 
 def frame_to_mono_int32(frame: AudioFrame) -> np.ndarray:
-    
+    """
+    Convert a single aiortc AudioFrame to flat mono int32.
+    Handles both planar stereo (2, N) and interleaved stereo (1, 2N).
+    Returns int32 to avoid overflow during mixing — caller decides final dtype.
+    """
     arr = frame.to_ndarray()
 
     if frame.layout.name == "stereo":

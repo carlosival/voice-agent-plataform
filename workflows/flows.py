@@ -8,10 +8,9 @@ logger = logging.getLogger(__name__)
 from workflows.steps import (
     vad_gate,
     brain_bridge,
-    stt,
+    stt_stream,
     llm_stream,
-    tts,
-    frame_sender,
+    tts_stream
 )
 
 
@@ -33,9 +32,9 @@ def build_voice_workflow() -> StreamWorkflow:
         wf
         .use(vad_gate,      name="vad",    description="VAD utterance gating")
         .use(brain_bridge,  name="bridge") # THE DECOUPLER (Stage 1.5)
-        .use(stt,           name="stt",    description="Speaches Whisper STT")
+        .use(stt_stream,    name="stt",    description="Speaches Whisper STT")
         .use(llm_stream,    name="llm",    description="Llama 3.1 streaming")
-        .use(tts,           name="tts",    description="Speaches Kokoro TTS")
+        .use(tts_stream,    name="tts",    description="Speaches Kokoro TTS")
     )
     return wf
 

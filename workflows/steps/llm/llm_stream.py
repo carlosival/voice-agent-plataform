@@ -1,10 +1,11 @@
-from typing import Dict
+from typing import Dict, AsyncGenerator
 from .workers import call_llm_stream_openai_worker, get_llm_provider_worker, get_provider_url
+from yaafpy.types import ExecContext
 
 async def llm_stream(
     text: str,
     ctx:    ExecContext,
-) -> [LLMEvent, ExecContext]:
+) -> AsyncGenerator[str, None]:
     """
     Decides based on the context what inference provider to use and calls the provider.
     """

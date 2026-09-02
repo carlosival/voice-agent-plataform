@@ -6,14 +6,15 @@ from .config import WAIT_FOR_TIMEOUT
 
 
 
+
 # ──────────────────────────────────────────────
 # Stage 0 — async generator wrapping the 
 # MediaStreamTrack is the transport of the audio
 # ──────────────────────────────────────────────
-async def track_frames(track: MediaStreamTrack) -> AsyncGenerator[AudioFrame, None]:
+async def track_frames(track: MediaStreamTrack) -> AsyncGenerator[av.AudioFrame, None]:
     frame_count = 0
     resampler = av.AudioResampler(
-            format="s16",
+            format="flt",
             layout="mono",
             rate=16000,
         )

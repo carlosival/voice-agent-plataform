@@ -2,7 +2,7 @@
 Factory for STT providers
 '''
 
-from workflows.steps.stt.workers.stt_provider_openai import call_stt
+from .stt_provider_openai import call_stt
 ## TODO: Add more providers as needed
 
 def get_stt_provider(provider_name: str):

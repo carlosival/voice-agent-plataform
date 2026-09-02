@@ -60,9 +60,14 @@ async def vad_gate(source: AsyncGenerator, ctx: ExecContext) -> AsyncGenerator[l
 
         # Save before reset so QUIET→STARTING can backfill
         evaluated_frames = list(silero_buf)
-        pcm              = frames_to_mono_int16(evaluated_frames)
-        confident        = silero_has_speech_from_numpy(pcm)
-        silero_buf       = []
+        
+        # Convert AudioFrames to 1D numpy array
+        pcm = np.concatenate([
+            frame.to_ndarray().reshape(-1)
+            for frame in evaluated_frames
+        ])
+        confident = silero_has_speech_from_numpy(pcm)
+        silero_buf = []
 
         if confident:
             match state:

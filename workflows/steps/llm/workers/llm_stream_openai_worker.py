@@ -17,7 +17,7 @@ from workflows.utils.context.message_context_builder import build_chat_messages
 
 async def call_llm_stream_openai_worker(
     text: str,
-    memory: Memory, # The last message is the user input already included in memory
+    memory: IMemory, # The last message is the user input already included in memory
     tools: Optional[list] = None,
     http_client: Optional[AsyncClient] = None,
     tracing_data: Optional[dict] = None, # {"tracer": tracer, "trace_id": trace_id, "parent_span_id": parent_span_id}

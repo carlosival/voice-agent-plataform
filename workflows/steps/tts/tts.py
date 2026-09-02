@@ -1,11 +1,26 @@
 import asyncio
+from typing import AsyncGenerator
+from yaafpy.types import ExecContext
+from yaafpy import StreamWorkflow
+
+from workflows.utils import (
+    layered_has_speech,
+    call_stt_from_frames_openai,
+    call_stt_from_frames_speaches,
+    call_llm_stream_openai,
+    call_tts_stream,
+    pcm_to_wav,
+    frames_to_pcm,
+    silero_has_speech_from_numpy,
+    frames_to_mono_int16
+)
 
 # ════════════════════════════════════════════════════════════════════════════════
 # TRANSFORM 4  –  TTS
 # str  →  bytes  (WAV blob per sentence)
 # ════════════════════════════════════════════════════════════════════════════════
 
-async def tts(
+async def tts_stream(
     source: AsyncGenerator,
     ctx:    ExecContext,
 ) -> AsyncGenerator[bytes, None]:

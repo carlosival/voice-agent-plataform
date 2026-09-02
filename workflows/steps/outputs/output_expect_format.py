@@ -8,11 +8,12 @@ class Encoding(str, Enum):
     PCM_S16LE = "pcm_s16le"
     PCM_S32LE = "pcm_s32le"
     PCM_F32LE = "pcm_f32le"
+    PCM_S24LE = "pcm_s24le"
     PCM_U8 = "pcm_u8"
     MULAW = "mulaw"
     ALAW = "alaw"
     OPUS = "opus"
-
+    
 class Container(str, Enum):
     RAW = "raw"
     WAV = "wav"

@@ -2,7 +2,7 @@
 
 from .llm_stream_openai_worker import call_llm_stream_openai_worker
 
-from .config import handler_provider, url_provider
+from .config import provider_models_supported, url_provider
 
 # The number key are related to the provider_name, model_name in config.py
 # Is a convienent way to map the provider and model to worker without using the handler in config.py
@@ -22,4 +22,4 @@ def get_provider_url(provider_name: str):
         raise ValueError(f"Unknown LLM provider: {provider_name}")
 
 def get_llm_provider_worker(provider: str, model: str):
-    return handler_map[handler_provider[provider][model]]
+    return handler_map[provider_models_supported[provider][model]]

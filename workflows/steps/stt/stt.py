@@ -1,6 +1,5 @@
-from workflows.steps.stt.config import DEBUG, SAVE_TO_S3
-from workflows.steps.stt.workers.debug_stt import debug_stt
-from workflows.steps.stt.workers.save_utterance_s3 import save_s3
+from .config import DEBUG, SAVE_TO_S3
+from workflows.steps.stt.workers import debug_stt, save_utterance_s3
 from workflows.steps.stt.workers.stt_factory_provider import get_stt_provider
 from yaafpy.types import ExecContext
 from typing import AsyncGenerator
@@ -20,7 +19,7 @@ def cancel_all_tasks(tasks: list[asyncio.Task]):
 # list[AudioFrame]  →  str
 # ════════════════════════════════════════════════════════════════════════════════
 
-async def stt(
+async def stt_stream(
     source: AsyncGenerator,
     ctx:    ExecContext,
 ) -> AsyncGenerator:

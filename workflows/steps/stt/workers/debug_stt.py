@@ -1,6 +1,7 @@
 import os
-from workflows.config import DEBUG_DIR
+from .config import DEBUG_DIR
 from workflows.utils import frames_to_mono_int16
+from av import AudioFrame
 
 async def debug_stt(frames: list[AudioFrame]) -> str:
                 # Setup Debug Directory
